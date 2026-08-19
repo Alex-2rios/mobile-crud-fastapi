@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "Inventory",
+    "slug": "inventory-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#0d1117"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.arc.inventory",
+      "adaptiveIcon": {
+        "backgroundColor": "#0d1117"
+      }
+    }
+  }
+}
