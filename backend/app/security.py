@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import bcrypt
 import jwt
@@ -34,8 +34,8 @@ def create_access_token(subject: str) -> tuple[str, int]:
     expires_in = settings.access_token_expire_minutes * 60
     payload = {
         "sub": subject,
-        "iat": datetime.now(timezone.utc),
-        "exp": datetime.now(timezone.utc) + timedelta(seconds=expires_in),
+        "iat": datetime.now(UTC),
+        "exp": datetime.now(UTC) + timedelta(seconds=expires_in),
     }
     token = jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
     return token, expires_in
@@ -48,8 +48,8 @@ def get_current_user(
     try:
         payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
         email = payload.get("sub")
-    except InvalidTokenError:
-        raise credentials_error
+    except InvalidTokenError as exc:
+        raise credentials_error from exc
 
     if not email:
         raise credentials_error

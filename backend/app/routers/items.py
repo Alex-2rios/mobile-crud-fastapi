@@ -51,9 +51,11 @@ def create_item(
     db.add(item)
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as exc:
         db.rollback()
-        raise HTTPException(status.HTTP_409_CONFLICT, "you already have an item with that sku")
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "you already have an item with that sku"
+        ) from exc
     db.refresh(item)
     return item
 
@@ -84,9 +86,11 @@ def update_item(
 
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as exc:
         db.rollback()
-        raise HTTPException(status.HTTP_409_CONFLICT, "you already have an item with that sku")
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "you already have an item with that sku"
+        ) from exc
     db.refresh(item)
     return item
 
