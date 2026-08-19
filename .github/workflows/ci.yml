@@ -1,0 +1,88 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.txt
+
+      - name: Install
+        run: pip install -r requirements-dev.txt
+
+      - name: Lint
+        run: ruff check .
+
+      - name: Test
+        run: pytest
+
+      - name: Migrations apply and roll back on a clean database
+        run: |
+          DATABASE_URL=sqlite:///./ci.db alembic upgrade head
+          DATABASE_URL=sqlite:///./ci.db alembic downgrade base
+
+  stack:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start the api and postgres
+        run: docker compose up -d --build
+
+      - name: Wait for the api
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8000/health; then exit 0; fi
+            sleep 2
+          done
+          docker compose logs api
+          exit 1
+
+      - name: Register, log in and create an item end to end
+        run: |
+          curl -sf -X POST http://localhost:8000/auth/register \
+            -H 'content-type: application/json' \
+            -d '{"email":"ci@example.com","password":"supersecret1"}'
+          TOKEN=$(curl -sf -X POST http://localhost:8000/auth/token \
+            -d 'username=ci@example.com&password=supersecret1' | python -c "import json,sys; print(json.load(sys.stdin)['access_token'])")
+          curl -sf -X POST http://localhost:8000/items \
+            -H "authorization: Bearer $TOKEN" \
+            -H 'content-type: application/json' \
+            -d '{"sku":"CI-1","name":"Continuous integration widget","quantity":1}'
+          curl -sf http://localhost:8000/items -H "authorization: Bearer $TOKEN" \
+            | python -c "import json,sys; assert json.load(sys.stdin)['total'] == 1"
+
+      - name: Logs on failure
+        if: failure()
+        run: docker compose logs
+
+  mobile:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Parse every source file
+        run: npx --yes esbuild@0.23.1 --loader:.js=jsx --outdir=/tmp/parsed App.js src/**/*.js
