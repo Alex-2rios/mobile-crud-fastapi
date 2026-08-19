@@ -38,8 +38,27 @@ def register_and_login(client, email="tech@example.com", password="supersecret1"
     return {"Authorization": f"Bearer {token}"}
 
 
-def test_health(client):
-    assert client.get("/health").json() == {"status": "ok"}
+def test_health_reports_the_database_too(client):
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok", "database": "ok"}
+
+
+def test_health_fails_when_the_database_is_unreachable(client):
+    def broken_db():
+        engine = create_engine("sqlite:////nonexistent/path/does-not-exist.db")
+        session = sessionmaker(bind=engine)()
+        try:
+            yield session
+        finally:
+            session.close()
+
+    app.dependency_overrides[get_db] = broken_db
+    response = client.get("/health")
+
+    assert response.status_code == 503
+    assert "database" in response.json()["detail"]
 
 
 def test_register_rejects_duplicate_email(client):
