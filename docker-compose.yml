@@ -1,0 +1,35 @@
+name: inventory
+
+services:
+  api:
+    build: ./backend
+    container_name: inventory-api
+    environment:
+      DATABASE_URL: postgresql+psycopg://inventory:${POSTGRES_PASSWORD:-inventory}@db:5432/inventory
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-not-for-production}
+      ACCESS_TOKEN_EXPIRE_MINUTES: 120
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    container_name: inventory-db
+    environment:
+      POSTGRES_USER: inventory
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-inventory}
+      POSTGRES_DB: inventory
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U inventory"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  pgdata:
