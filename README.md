@@ -71,6 +71,37 @@ alembic revision --autogenerate -m "add supplier to items"
 reach it. A health endpoint that reports healthy while the database is gone is worse than not
 having one, because it is what your load balancer believes.
 
+## Logs you can actually search
+
+Every log line is one JSON object, and every request carries an id:
+
+```json
+{"timestamp": "2026-08-20T04:25:49.253Z", "level": "info", "logger": "app.access",
+ "message": "GET /items 401", "request_id": "interview-demo-1", "method": "GET",
+ "path": "/items", "status": 401, "duration_ms": 1.19, "client": "172.29.0.1"}
+```
+
+The id comes from the `X-Request-ID` header if the caller sent one, otherwise the middleware
+generates it. Either way it goes back out on the response and appears on every line logged during
+that request, including the traceback if something throws. When the mobile app reports a failure,
+the id from its response finds the exact request in the logs.
+
+Unhandled exceptions return the request id in the body too, so a user can read it off the screen
+rather than describing what they were doing.
+
+## Running it hardened
+
+The container runs as an unprivileged user with a read only root filesystem, every Linux
+capability dropped and `no-new-privileges` set:
+
+```bash
+$ docker compose exec api id
+uid=10001(apiuser) gid=999(apiuser) groups=999(apiuser)
+```
+
+None of that is exotic and all of it is default off. The application does not need to write
+anywhere except `/tmp`, so there is no reason to let it.
+
 ## Running the app
 
 ```bash
@@ -92,7 +123,7 @@ cd backend
 pytest
 ```
 
-Seventeen tests against a throwaway in memory SQLite database. The ones worth reading are
+Twenty four tests against a throwaway in memory SQLite database. The ones worth reading are
 `test_users_cannot_see_or_touch_each_other_items` and `test_same_sku_allowed_for_different_owners`,
 because those cover the two ways multi tenant CRUD usually goes wrong: leaking other people's
 rows, and treating a per user constraint as if it were global.
@@ -124,6 +155,29 @@ when you deploy.
 - `render_as_batch=True` in the Alembic environment, because SQLite cannot alter a column in
   place and rebuilds the table instead. Without it the migrations work on PostgreSQL and fail on
   the database I develop against.
+- A request id is worth more than a timestamp when something goes wrong. Correlating logs by
+  time works until two people hit the same endpoint in the same second.
+- `contextvars` is what makes the request id available to every log line without threading it
+  through every function signature. It is the async equivalent of thread local storage and it is
+  in the standard library.
+
+## Working on this
+
+```bash
+make help
+```
+
+The usual ones: `make install, make test, make migrate, make up, make mobile`.
+
+Every push runs the CI workflow described above. A second workflow, `security.yml`, runs weekly
+and on every push: it scans the history for committed secrets with gitleaks, audits the Python
+dependencies with pip-audit, and scans the API image with Trivy.
+
+Dependabot opens pull requests for the GitHub Actions and the dependencies once a week.
+
+Line endings are pinned to LF through `.gitattributes`, because half of this was written on
+Windows and shell scripts with carriage returns fail on Linux in a way that is genuinely
+confusing the first time.
 
 ## Next
 
