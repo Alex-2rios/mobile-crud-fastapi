@@ -1,7 +1,17 @@
 name: inventory
 
+x-hardening: &hardening
+  security_opt:
+    - no-new-privileges:true
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
 services:
   api:
+    <<: *hardening
     build: ./backend
     container_name: inventory-api
     environment:
@@ -10,12 +20,28 @@ services:
       ACCESS_TOKEN_EXPIRE_MINUTES: 120
     ports:
       - "8000:8000"
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     depends_on:
       db:
         condition: service_healthy
     restart: unless-stopped
 
   db:
+    <<: *hardening
     image: postgres:16-alpine
     container_name: inventory-db
     environment:
@@ -24,6 +50,18 @@ services:
       POSTGRES_DB: inventory
     volumes:
       - pgdata:/var/lib/postgresql/data
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+    deploy:
+      resources:
+        limits:
+          memory: 512M
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U inventory"]
       interval: 5s
