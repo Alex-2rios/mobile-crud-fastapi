@@ -102,6 +102,18 @@ uid=10001(apiuser) gid=999(apiuser) groups=999(apiuser)
 None of that is exotic and all of it is default off. The application does not need to write
 anywhere except `/tmp`, so there is no reason to let it.
 
+## Running the published image
+
+Every tag builds and pushes the API image to the registry, with a software bill of materials
+attached to the release:
+
+```bash
+docker run --rm -p 8000:8000   -e DATABASE_URL=sqlite:///./inventory.db   ghcr.io/alex-2rios/inventory-api:latest
+```
+
+The entrypoint applies the migrations before uvicorn starts, so that command gives you a working
+API on an empty database.
+
 ## Running the app
 
 ```bash
@@ -123,7 +135,12 @@ cd backend
 pytest
 ```
 
-Twenty four tests and 95% coverage against a throwaway in memory SQLite database. CI fails under 85%. The ones worth reading are
+Twenty four tests and 95% coverage on the backend, plus 23 on the mobile API client, which is
+the piece with real logic on that side: bearer headers, form encoding for the OAuth2 flow, url
+encoded search terms, 204 handling, and the error parsing that turns a FastAPI validation error
+into one readable sentence. CI fails under 85% on both.
+
+The backend tests run against a throwaway in memory SQLite database. CI fails under 85%. The ones worth reading are
 `test_users_cannot_see_or_touch_each_other_items` and `test_same_sku_allowed_for_different_owners`,
 because those cover the two ways multi tenant CRUD usually goes wrong: leaking other people's
 rows, and treating a per user constraint as if it were global.
