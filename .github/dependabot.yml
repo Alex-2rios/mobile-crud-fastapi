@@ -6,21 +6,44 @@ updates:
     schedule:
       interval: monthly
     open-pull-requests-limit: 5
+    groups:
+      github-actions:
+        patterns:
+          - "*"
 
   - package-ecosystem: pip
     directory: /backend
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    groups:
+      python:
+        patterns:
+          - "*"
 
   - package-ecosystem: docker
     directory: /backend
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    groups:
+      base-images:
+        patterns:
+          - "*"
 
   - package-ecosystem: npm
     directory: /mobile
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    groups:
+      expo:
+        patterns:
+          - "expo"
+          - "expo-*"
+          - "react"
+          - "react-native"
+          - "react-native-*"
+      navigation:
+        patterns:
+          - "@react-navigation/*"

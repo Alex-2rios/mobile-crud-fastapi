@@ -123,7 +123,7 @@ cd backend
 pytest
 ```
 
-Twenty four tests against a throwaway in memory SQLite database. The ones worth reading are
+Twenty four tests and 95% coverage against a throwaway in memory SQLite database. CI fails under 85%. The ones worth reading are
 `test_users_cannot_see_or_touch_each_other_items` and `test_same_sku_allowed_for_different_owners`,
 because those cover the two ways multi tenant CRUD usually goes wrong: leaking other people's
 rows, and treating a per user constraint as if it were global.
