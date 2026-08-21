@@ -82,7 +82,15 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: "20"
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Test the api client
+        run: npm run test:coverage
 
       - name: Parse every source file
-        run: npx --yes esbuild@0.23.1 --loader:.js=jsx --outdir=/tmp/parsed App.js src/**/*.js
+        run: npx --yes esbuild@0.23.1 --loader:.js=jsx --outdir=/tmp/parsed index.js App.js src/**/*.js
